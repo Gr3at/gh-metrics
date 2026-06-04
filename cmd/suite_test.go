@@ -40,6 +40,7 @@ const (
                         "nodes": [
                             {
                                 "author": {
+                                    "__typename": "User",
                                     "login": "Joker"
                                 },
                                 "createdAt": "2022-03-21T15:12:52Z",
@@ -47,6 +48,7 @@ const (
                             },
                             {
                                 "author": {
+                                    "__typename": "User",
                                     "login": "Joker"
                                 },
                                 "createdAt": "2022-03-22T15:12:52Z",
@@ -94,6 +96,7 @@ const (
                         "nodes": [
                             {
                                 "author": {
+                                    "__typename": "User",
                                     "login": "Joker"
                                 },
                                 "createdAt": "2022-03-22T15:12:52Z",
@@ -101,6 +104,7 @@ const (
                             },
                             {
                                 "author": {
+                                    "__typename": "User",
                                     "login": "Joker"
                                 },
                                 "createdAt": "2022-03-23T15:12:52Z",

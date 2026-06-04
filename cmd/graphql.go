@@ -6,7 +6,8 @@ type PageInfo struct {
 }
 
 type Author struct {
-	Login string
+	Typename string `graphql:"__typename"`
+	Login    string
 }
 
 type Participants struct {

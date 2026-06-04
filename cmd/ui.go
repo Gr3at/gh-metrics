@@ -20,6 +20,8 @@ const (
 	DefaultResultCount = 100
 	// Pull request review approved state.
 	ReviewApprovedState = "APPROVED"
+	// GitHub GraphQL actor type for bot accounts.
+	ActorBotType = "Bot"
 )
 
 type UI struct {
@@ -83,30 +85,37 @@ func getReadyForReviewOrPrCreatedAt(prCreated string, timelineItems TimelineItem
 	return readyAt
 }
 
+func isBotAuthor(author Author) bool {
+	return author.Typename == ActorBotType
+}
+
 // getTimeToFirstReview returns the time to first review, in hours and
 // minutes, for a given PR.
 //
-//	timeToFirstReview = (readyForReviewAt || prCreatedAt) - firstReviewdAt
-func (ui *UI) getTimeToFirstReview(author, prCreatedAt string, isDraft bool, timelineItems TimelineItems, reviews Reviews) string {
-	// The pull request is still in a draft state, because it has not
-	// yet been marked as ready for review.
+//	timeToFirstReview = firstReviewedAt - (readyForReviewAt || prCreatedAt)
+func (ui *UI) getTimeToFirstReview(author, prCreatedAt string, isDraft bool, timelineItems TimelineItems, reviews Reviews, excludeBots bool) string {
 	if timelineItems.TotalCount == 0 && isDraft {
 		return DefaultEmptyCell
 	}
 
 	for _, review := range reviews.Nodes {
-		if review.Author.Login != author {
-			readyForReviewOrPrCreatedAt, err := time.Parse(time.RFC3339, getReadyForReviewOrPrCreatedAt(prCreatedAt, timelineItems))
-			if err != nil {
-				return DefaultEmptyCell
-			}
-			firstReviewedAt, err := time.Parse(time.RFC3339, review.CreatedAt)
-			if err != nil {
-				return DefaultEmptyCell
-			}
-
-			return formatDuration(ui.subtractTime(firstReviewedAt, readyForReviewOrPrCreatedAt), ui.CSVFormat)
+		if review.Author.Login == author {
+			continue
 		}
+		if excludeBots && isBotAuthor(review.Author) {
+			continue
+		}
+
+		readyForReviewOrPrCreatedAt, err := time.Parse(time.RFC3339, getReadyForReviewOrPrCreatedAt(prCreatedAt, timelineItems))
+		if err != nil {
+			return DefaultEmptyCell
+		}
+		firstReviewedAt, err := time.Parse(time.RFC3339, review.CreatedAt)
+		if err != nil {
+			return DefaultEmptyCell
+		}
+
+		return formatDuration(ui.subtractTime(firstReviewedAt, readyForReviewOrPrCreatedAt), ui.CSVFormat)
 	}
 
 	return DefaultEmptyCell
@@ -221,7 +230,7 @@ func (ui *UI) printMetricsImpl(defaultResultCount int) string {
 			Host:        ui.Host,
 			EnableCache: true,
 			CacheTTL:    15 * time.Minute,
-			Timeout:     5 * time.Second,
+			Timeout:     30 * time.Second,
 		},
 	)
 	if err != nil {
@@ -256,6 +265,7 @@ func (ui *UI) printMetricsImpl(defaultResultCount int) string {
 		"Deletions",
 		"Changed Files",
 		"Time to First Review",
+		"Time to First Human Review",
 		"Comments",
 		"Participants",
 		"Feature Lead Time",
@@ -277,6 +287,15 @@ func (ui *UI) printMetricsImpl(defaultResultCount int) string {
 					node.PullRequest.IsDraft,
 					node.PullRequest.TimelineItems,
 					node.PullRequest.Reviews,
+					false,
+				),
+				ui.getTimeToFirstReview(
+					node.PullRequest.Author.Login,
+					node.PullRequest.CreatedAt,
+					node.PullRequest.IsDraft,
+					node.PullRequest.TimelineItems,
+					node.PullRequest.Reviews,
+					true,
 				),
 				node.PullRequest.Comments.TotalCount,
 				node.PullRequest.Participants.TotalCount,

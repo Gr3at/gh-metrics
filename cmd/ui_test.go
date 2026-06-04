@@ -82,8 +82,8 @@ func Test_SearchQuery_WithCSV(t *testing.T) {
 
 	have := ui.PrintMetrics()
 
-	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,0,3,01:12,08:00,06:51"), true)
-	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,38:13,0,3,01:12,08:00,06:51"), true)
 }
 
 func Test_SearchQuery_WithPagination(t *testing.T) {
@@ -120,8 +120,8 @@ func Test_SearchQuery_WithPagination(t *testing.T) {
 
 	have := ui.printMetricsImpl(1)
 
-	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,0,3,01:12,08:00,06:51"), true)
-	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,38:13,0,3,01:12,08:00,06:51"), true)
 }
 
 func Test_SearchQuery_WithQueryFilter(t *testing.T) {
@@ -146,8 +146,8 @@ func Test_SearchQuery_WithQueryFilter(t *testing.T) {
 
 	have := ui.printMetricsImpl(1)
 
-	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,0,3,01:12,08:00,06:51"), true)
-	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5339,1,6,3,1,38:13,38:13,0,3,01:12,08:00,06:51"), true)
+	st.Assert(t, strings.Contains(have, "5340,1,12,6,2,38:13,38:13,0,3,01:12,08:00,06:51"), true)
 }
 
 func Test_subtractTime_WithinWorkday(t *testing.T) {
@@ -251,7 +251,7 @@ func Test_getTimeToFirstReview(t *testing.T) {
 			WorkdayEndFunc:   WorkdayEnd,
 		},
 	}
-	st.Assert(t, uiWithWeekends.getTimeToFirstReview("Batman", "", false, timelineItems, reviews), "24h0m")
+	st.Assert(t, uiWithWeekends.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "24h0m")
 
 	uiWithoutWeekends := &UI{
 		Calendar: &cal.BusinessCalendar{
@@ -260,7 +260,7 @@ func Test_getTimeToFirstReview(t *testing.T) {
 			WorkdayEndFunc:   WorkdayEnd,
 		},
 	}
-	st.Assert(t, uiWithoutWeekends.getTimeToFirstReview("Batman", "", false, timelineItems, reviews), "15h11m")
+	st.Assert(t, uiWithoutWeekends.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "15h11m")
 }
 
 func Test_getTimeToFirstReview_Draft(t *testing.T) {
@@ -278,7 +278,7 @@ func Test_getTimeToFirstReview_Draft(t *testing.T) {
 	}
 
 	ui := &UI{}
-	st.Assert(t, ui.getTimeToFirstReview("Batman", "", true, timelineItems, reviews), "--")
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", true, timelineItems, reviews, false), "--")
 }
 
 func Test_getTimeToFirstReview_NoReviews(t *testing.T) {
@@ -292,7 +292,32 @@ func Test_getTimeToFirstReview_NoReviews(t *testing.T) {
 	}
 
 	ui := &UI{}
-	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews), "--")
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "--")
+}
+
+func Test_getTimeToFirstReview_totalCountWithoutNodes(t *testing.T) {
+	var timelineItems = TimelineItems{
+		TotalCount: 1,
+		Nodes:      TimelineItemNodes{},
+	}
+	var reviews = Reviews{
+		Nodes: ReviewNodes{
+			{
+				Author:    Author{Login: "Joker"},
+				CreatedAt: "2022-03-20T15:11:09Z",
+				State:     "APPROVED",
+			},
+		},
+	}
+
+	ui := &UI{
+		Calendar: &cal.BusinessCalendar{
+			WorkdayFunc:      WorkdayAllDays,
+			WorkdayStartFunc: WorkdayStart,
+			WorkdayEndFunc:   WorkdayEnd,
+		},
+	}
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "2022-03-19T15:00:09Z", false, timelineItems, reviews, false), "24h11m")
 }
 
 func Test_getTimeToFirstReview_InvalidReadyForReviewDate(t *testing.T) {
@@ -313,7 +338,7 @@ func Test_getTimeToFirstReview_InvalidReadyForReviewDate(t *testing.T) {
 	}
 
 	ui := &UI{}
-	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews), "--")
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "--")
 }
 
 func Test_getTimeToFirstReview_InvalidReviewDate(t *testing.T) {
@@ -334,7 +359,62 @@ func Test_getTimeToFirstReview_InvalidReviewDate(t *testing.T) {
 	}
 
 	ui := &UI{}
-	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews), "--")
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "--")
+}
+
+func Test_getTimeToFirstHumanReview_SkipsBotReview(t *testing.T) {
+	var timelineItems = TimelineItems{
+		TotalCount: 1,
+		Nodes: TimelineItemNodes{
+			{ReadyForReviewEvent{CreatedAt: "2022-03-21T15:11:09Z"}},
+		},
+	}
+	var reviews = Reviews{
+		Nodes: ReviewNodes{
+			{
+				Author:    Author{Typename: ActorBotType, Login: "gemini-code-assist[bot]"},
+				CreatedAt: "2022-03-21T15:12:09Z",
+				State:     "COMMENTED",
+			},
+			{
+				Author:    Author{Typename: "User", Login: "Joker"},
+				CreatedAt: "2022-03-22T15:11:09Z",
+				State:     "APPROVED",
+			},
+		},
+	}
+
+	ui := &UI{
+		Calendar: &cal.BusinessCalendar{
+			WorkdayFunc:      WorkdayAllDays,
+			WorkdayStartFunc: WorkdayStart,
+			WorkdayEndFunc:   WorkdayEnd,
+		},
+	}
+
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "1m")
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, true), "24h0m")
+}
+
+func Test_getTimeToFirstHumanReview_OnlyBotReviews(t *testing.T) {
+	var timelineItems = TimelineItems{
+		TotalCount: 1,
+		Nodes: TimelineItemNodes{
+			{ReadyForReviewEvent{CreatedAt: "2022-03-21T15:11:09Z"}},
+		},
+	}
+	var reviews = Reviews{
+		Nodes: ReviewNodes{
+			{
+				Author:    Author{Typename: ActorBotType, Login: "gemini-code-assist[bot]"},
+				CreatedAt: "2022-03-21T15:12:09Z",
+				State:     "COMMENTED",
+			},
+		},
+	}
+
+	ui := &UI{}
+	st.Assert(t, ui.getTimeToFirstReview("Batman", "", false, timelineItems, reviews, false), "--")
 }
 
 func Test_getFeatureLeadTime(t *testing.T) {

@@ -2,9 +2,10 @@
 
 A [`gh`](https://cli.github.com/) extension that provides summary pull request metrics.
 
-- [Usage](#usage)
-- [Metric definitions](#metric-definitions)
-- [Influences](#influences)
+- [gh-metrics](#gh-metrics)
+  - [Usage](#usage)
+  - [Metric definitions](#metric-definitions)
+  - [Influences](#influences)
 
 ## Usage
 
@@ -66,6 +67,7 @@ PR,Commits,Additions,Deletions,Changed Files,Time to First Review,Comments,Parti
 ## Metric definitions
 
 - **Time to first review**: The duration from when the pull request was created or marked *Ready for review* to when the first review against it was completed.
+- **Time to first human review**: The duration from when the pull request was created or marked *Ready for review* to when the first non-author review by a human was completed. Bot reviews are excluded.
 - **Feature lead time**: The duration from when the first commit contained in the pull request was created to when the pull request was merged.
 - **First review to last review**: The duration between the first non-author review and the last approving non-author review ([Background](https://github.com/hectcastro/gh-metrics/issues/13)) 
 - **First approval to merge**: The duration from when the first approval review is given to when the pull request is merged.
